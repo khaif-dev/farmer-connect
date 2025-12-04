@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getFarms, getAnimals, getCrops, createFarm, updateFarm, deleteFarm, createAnimal, updateAnimal, deleteAnimal, createCrop, updateCrop, deleteCrop, marketAPI } from '../lib/API';
+import { WeatherAPI } from '../lib/weatherAPI';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -76,9 +77,17 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const isBuyer = user?.userType === 'buyer';
+  
+  // Weather states
+  const [currentWeather, setCurrentWeather] = useState(null);
+  const [weatherForecast, setWeatherForecast] = useState([]);
+  const [weatherAlerts, setWeatherAlerts] = useState([]);
+  const [weatherLoading, setWeatherLoading] = useState(true);
+  const [weatherError, setWeatherError] = useState('');
 
   useEffect(() => {
     fetchDashboardData();
+    fetchWeatherData();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -114,6 +123,33 @@ const Dashboard = () => {
       console.error('Dashboard error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchWeatherData = async () => {
+    try {
+      setWeatherLoading(true);
+      setWeatherError('');
+      
+      // Use user's location if available, otherwise use Kenya coordinates
+      const userLocation = user?.location;
+      const lat = userLocation?.coordinates?.lat || -0.0236;
+      const lon = userLocation?.coordinates?.lon || 37.9062;
+      
+      const [current, forecast, alerts] = await Promise.all([
+        WeatherAPI.getCurrentWeather(lat, lon),
+        WeatherAPI.getForecast(lat, lon),
+        WeatherAPI.getWeatherAlerts(lat, lon)
+      ]);
+      
+      setCurrentWeather(current);
+      setWeatherForecast(forecast || []);
+      setWeatherAlerts(alerts || []);
+    } catch (err) {
+      setWeatherError('Failed to load weather data');
+      console.error('Weather error:', err);
+    } finally {
+      setWeatherLoading(false);
     }
   };
 
@@ -568,23 +604,28 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
             Welcome back, {user?.firstName}!
           </h1>
-          <p className="text-gray-600 dark:text-gray-300">
+          <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base">
             {isBuyer ? "Here's your buying overview" : "Here's your farming overview"}
           </p>
           {isBuyer && user?.buyerDetails?.institutionType && (
-            <p className="text-sm text-green-600 dark:text-green-400">
+            <p className="text-xs sm:text-sm text-green-600 dark:text-green-400 mt-1">
               {user.buyerDetails.institutionType} • {user.location?.county}, {user.location?.subCounty}
             </p>
           )}
         </div>
-        <Button onClick={fetchDashboardData} variant="outline" className="border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+        <Button
+          onClick={() => { fetchDashboardData(); fetchWeatherData(); }}
+          variant="outline"
+          className="border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 w-fit sm:w-auto self-start sm:self-auto"
+          size="sm"
+        >
           Refresh Data
         </Button>
       </div>
@@ -595,36 +636,115 @@ const Dashboard = () => {
         </Alert>
       )}
 
-      {/* Weather Alert */}
-      <Alert className="bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
-        <AlertDescription className="text-amber-800 dark:text-amber-300">
-          <strong>Weather Alert:</strong> Heavy rainfall expected in 48 hours. Prepare drainage and harvest ripe crops.
-        </AlertDescription>
-      </Alert>
+      {/* Weather Section */}
+      {currentWeather && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Current Weather Card */}
+          <Card className="lg:col-span-1 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-blue-200 dark:border-blue-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                <span className="text-lg sm:text-2xl">{WeatherAPI.getWeatherIcon(currentWeather.icon)}</span>
+                Current Weather
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <span className="text-2xl sm:text-3xl font-bold text-blue-900 dark:text-blue-100">
+                    {WeatherAPI.formatTemperature(currentWeather.temperature)}
+                  </span>
+                  <span className="text-xs sm:text-sm text-blue-700 dark:text-blue-300 capitalize">
+                    {currentWeather.description}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs text-blue-600 dark:text-blue-400">
+                  <div>Humidity: {currentWeather.humidity}%</div>
+                  <div>Wind: {currentWeather.windSpeed} km/h</div>
+                  <div>Pressure: {currentWeather.pressure} hPa</div>
+                  <div>{currentWeather.city}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Weather Alerts */}
+          <div className="lg:col-span-2 space-y-4">
+            {weatherAlerts.length > 0 ? (
+              weatherAlerts.map((alert, index) => (
+                <Alert
+                  key={index}
+                  className={`${
+                    alert.severity === 'warning'
+                      ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
+                      : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                  }`}
+                >
+                  <AlertDescription className={`text-xs sm:text-sm ${
+                    alert.severity === 'warning'
+                      ? 'text-amber-800 dark:text-amber-300'
+                      : 'text-blue-800 dark:text-blue-300'
+                  }`}>
+                    <strong>{alert.title}:</strong> {alert.message}
+                    {alert.days.length > 0 && (
+                      <span className="block text-xs mt-1 opacity-75">
+                        Affected dates: {alert.days.join(', ')}
+                      </span>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              ))
+            ) : (
+              <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                <AlertDescription className="text-xs sm:text-sm text-green-800 dark:text-green-300">
+                  <strong>No Weather Alerts:</strong> Current conditions are favorable for farming activities.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Weather Loading State */}
+      {weatherLoading && (
+        <Alert className="bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-700">
+          <AlertDescription className="text-gray-600 dark:text-gray-400">
+            Loading current weather conditions...
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Weather Error State */}
+      {weatherError && (
+        <Alert className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+          <AlertDescription className="text-red-700 dark:text-red-300">
+            <strong>Weather Error:</strong> {weatherError}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {isBuyer ? (
           // Buyer Stats - Original Basic Version
           <>
             <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">My Listings</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">My Listings</CardTitle>
                 <i className="fas fa-list text-blue-600 dark:text-blue-500"></i>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{listings.length}</div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{listings.length}</div>
                 <p className="text-xs text-gray-600 dark:text-gray-400">My active listings</p>
               </CardContent>
             </Card>
 
             <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">Buying Status</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Buying Status</CardTitle>
                 <i className="fas fa-shopping-cart text-green-600 dark:text-green-500"></i>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {user?.buyerDetails?.institutionType ? 'Active' : 'Pending'}
                 </div>
                 <p className="text-xs text-gray-600 dark:text-gray-400">
@@ -635,22 +755,22 @@ const Dashboard = () => {
 
             <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">Available Products</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Available Products</CardTitle>
                 <i className="fas fa-store text-orange-600 dark:text-orange-500"></i>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{marketListings.length}</div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{marketListings.length}</div>
                 <p className="text-xs text-gray-600 dark:text-gray-400">From farmers</p>
               </CardContent>
             </Card>
 
             <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">Interest Categories</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Interest Categories</CardTitle>
                 <i className="fas fa-tags text-purple-600 dark:text-purple-500"></i>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {user?.buyerDetails?.purchaseInterests?.length || 0}
                 </div>
                 <p className="text-xs text-gray-600 dark:text-gray-400">Product interests</p>
@@ -662,80 +782,80 @@ const Dashboard = () => {
           <>
             <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">Total Farms</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Total Farms</CardTitle>
                 <div className="flex items-center gap-2">
                   <i className="fas fa-tractor text-green-600 dark:text-green-500"></i>
-                  <Button 
+                  <Button
                     onClick={() => setShowFarmModal(true)}
                     size="sm"
-                    className="h-8 w-8 p-0 bg-green-600 hover:bg-green-700 text-white"
+                    className="h-7 w-7 sm:h-8 sm:w-8 p-0 bg-green-600 hover:bg-green-700 text-white"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{farms.length}</div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{farms.length}</div>
                 <p className="text-xs text-gray-600 dark:text-gray-400">Active farms</p>
               </CardContent>
             </Card>
 
             <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">Active Crops</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Active Crops</CardTitle>
                 <div className="flex items-center gap-2">
                   <i className="fas fa-seedling text-green-600 dark:text-green-500"></i>
-                  <Button 
+                  <Button
                     onClick={() => setShowCropModal(true)}
                     size="sm"
-                    className="h-8 w-8 p-0 bg-green-600 hover:bg-green-700 text-white"
+                    className="h-7 w-7 sm:h-8 sm:w-8 p-0 bg-green-600 hover:bg-green-700 text-white"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{crops.length}</div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{crops.length}</div>
                 <p className="text-xs text-gray-600 dark:text-gray-400">Crops growing</p>
               </CardContent>
             </Card>
 
             <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">Livestock</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Livestock</CardTitle>
                 <div className="flex items-center gap-2">
                   <i className="fas fa-paw text-green-600 dark:text-green-500"></i>
-                  <Button 
+                  <Button
                     onClick={() => setShowAnimalModal(true)}
                     size="sm"
-                    className="h-8 w-8 p-0 bg-green-600 hover:bg-green-700 text-white"
+                    className="h-7 w-7 sm:h-8 sm:w-8 p-0 bg-green-600 hover:bg-green-700 text-white"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{animals.length}</div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{animals.length}</div>
                 <p className="text-xs text-gray-600 dark:text-gray-400">Animals registered</p>
               </CardContent>
             </Card>
 
             <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-300">Market Listings</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">Market Listings</CardTitle>
                 <div className="flex items-center gap-2">
                   <i className="fas fa-shopping-cart text-green-600 dark:text-green-500"></i>
-                  <Button 
+                  <Button
                     onClick={() => setShowListingModal(true)}
                     size="sm"
-                    className="h-8 w-8 p-0 bg-green-600 hover:bg-green-700 text-white"
+                    className="h-7 w-7 sm:h-8 sm:w-8 p-0 bg-green-600 hover:bg-green-700 text-white"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{listings.length}</div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{listings.length}</div>
                 <p className="text-xs text-gray-600 dark:text-gray-400">Active listings</p>
               </CardContent>
             </Card>
@@ -744,46 +864,45 @@ const Dashboard = () => {
       </div>
 
       {/* Detailed Views */}
-      <Tabs defaultValue={isBuyer ? "market" : "farms"} className="space-y-6">
-        <TabsList>
+      <Tabs defaultValue={isBuyer ? "market" : "farms"} className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-1 h-auto">
           {isBuyer ? (
             <>
-              <TabsTrigger value="market">Available Products</TabsTrigger>
-              <TabsTrigger value="interests">My Interests</TabsTrigger>
+              <TabsTrigger value="market" className="text-xs sm:text-sm px-2 py-1 sm:px-4 sm:py-2">Available Products</TabsTrigger>
+              <TabsTrigger value="interests" className="text-xs sm:text-sm px-2 py-1 sm:px-4 sm:py-2">My Interests</TabsTrigger>
             </>
           ) : (
             <>
-              <TabsTrigger value="farms" className="bg-green-600 hover:bg-green-700 text-white">Farms</TabsTrigger>
-              <TabsTrigger value="livestock" className="bg-green-600 hover:bg-green-700 text-white">Livestock</TabsTrigger>
-              <TabsTrigger value="crops" className="bg-green-600 hover:bg-green-700 text-white">Crops</TabsTrigger>
-              <TabsTrigger value="market" className="bg-green-600 hover:bg-green-700 text-white">My Listings</TabsTrigger>
+              <TabsTrigger value="farms" className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm px-2 py-1 sm:px-4 sm:py-2">Farms</TabsTrigger>
+              <TabsTrigger value="livestock" className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm px-2 py-1 sm:px-4 sm:py-2">Livestock</TabsTrigger>
+              <TabsTrigger value="crops" className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm px-2 py-1 sm:px-4 sm:py-2">Crops</TabsTrigger>
+              <TabsTrigger value="market" className="bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm px-2 py-1 sm:px-4 sm:py-2">My Listings</TabsTrigger>
             </>
           )}
         </TabsList>
 
         {isBuyer ? (
           <>
-            <TabsContent value="market" className="space-y-4">
+            <TabsContent value="market" className="space-y-3 sm:space-y-4">
               {marketListings.length === 0 ? (
                 <Card>
-                  <CardContent className="p-6 text-center">
-                    <p className="text-gray-500">No products available from local farmers yet.</p>
+                  <CardContent className="p-4 sm:p-6 text-center">
+                    <p className="text-gray-500 text-sm sm:text-base">No products available from local farmers yet.</p>
                   </CardContent>
                 </Card>
               ) : (
                 marketListings.map(listing => (
                   <Card key={listing._id}>
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg">{listing.title || 'Product Listing'}</h3>
-                          <p className="text-gray-600">{listing.description || 'No description'}</p>
-                          <div className="flex gap-4 mt-2 text-sm text-gray-500">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-base sm:text-lg">{listing.title || 'Product Listing'}</h3>
+                          <p className="text-gray-600 text-sm">{listing.description || 'No description'}</p>
+                          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-500">
                             <span>Price: {listing.pricePerUnit || 'N/A'} KSh/{listing.quantity?.unit || 'unit'}</span>
                             <span>Quantity: {listing.quantity?.amount || '0'} {listing.quantity?.unit || 'units'}</span>
                           </div>
                         </div>
-                        
                       </div>
                     </CardContent>
                   </Card>
@@ -791,14 +910,14 @@ const Dashboard = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="interests" className="space-y-4">
+            <TabsContent value="interests" className="space-y-3 sm:space-y-4">
               {user?.buyerDetails?.purchaseInterests?.length > 0 ? (
                 <Card>
-                  <CardContent className="p-6">
-                    <h3 className="font-semibold text-lg mb-4">Your Purchase Interests</h3>
+                  <CardContent className="p-4 sm:p-6">
+                    <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4">Your Purchase Interests</h3>
                     <div className="flex flex-wrap gap-2">
                       {user.buyerDetails.purchaseInterests.map(interest => (
-                        <span key={interest} className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm">
+                        <span key={interest} className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm">
                           {interest}
                         </span>
                       ))}
@@ -807,8 +926,8 @@ const Dashboard = () => {
                 </Card>
               ) : (
                 <Card>
-                  <CardContent className="p-6 text-center">
-                    <p className="text-gray-500">No purchase interests set. Complete your onboarding to set preferences.</p>
+                  <CardContent className="p-4 sm:p-6 text-center">
+                    <p className="text-gray-500 text-sm sm:text-base">No purchase interests set. Complete your onboarding to set preferences.</p>
                   </CardContent>
                 </Card>
               )}
@@ -816,42 +935,42 @@ const Dashboard = () => {
           </>
         ) : (
           <>
-            <TabsContent value="farms" className="space-y-4">
+            <TabsContent value="farms" className="space-y-3 sm:space-y-4">
               {farms.length === 0 ? (
                 <Card>
-                  <CardContent className="p-6 text-center">
-                    <p className="text-gray-500">No farms registered yet. Complete your onboarding to add your farm.</p>
+                  <CardContent className="p-4 sm:p-6 text-center">
+                    <p className="text-gray-500 text-sm sm:text-base">No farms registered yet. Complete your onboarding to add your farm.</p>
                   </CardContent>
                 </Card>
               ) : (
                 farms.map(farm => (
                   <Card key={farm._id}>
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg">{farm.name}</h3>
-                          <p className="text-gray-600">{farm.location?.county}</p>
-                          <div className="flex gap-4 mt-2 text-sm text-gray-500">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-base sm:text-lg">{farm.name}</h3>
+                          <p className="text-gray-600 text-sm">{farm.location?.county}</p>
+                          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-500">
                             <span>{farm.cropsCount || 0} crops</span>
                             <span>{farm.animalsCount || 0} animals</span>
                           </div>
                         </div>
-                        <div className="flex gap-2 ml-4">
+                        <div className="flex gap-2 self-start sm:self-auto">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 w-8 p-0 text-blue-600 border-blue-600 hover:bg-blue-50"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-blue-600 border-blue-600 hover:bg-blue-50"
                             onClick={() => handleEditFarm(farm)}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 w-8 p-0 text-red-600 border-red-600 hover:bg-red-50"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-red-600 border-red-600 hover:bg-red-50"
                             onClick={() => handleDeleteFarm(farm._id)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                         </div>
                       </div>
@@ -861,38 +980,38 @@ const Dashboard = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="livestock" className="space-y-4">
+            <TabsContent value="livestock" className="space-y-3 sm:space-y-4">
               {animals.length === 0 ? (
                 <Card>
-                  <CardContent className="p-6 text-center">
-                    <p className="text-gray-500">No livestock registered yet.</p>
+                  <CardContent className="p-4 sm:p-6 text-center">
+                    <p className="text-gray-500 text-sm sm:text-base">No livestock registered yet.</p>
                   </CardContent>
                 </Card>
               ) : (
                 animals.map(animal => (
                   <Card key={animal._id}>
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg">{animal.type}</h3>
-                          <p className="text-gray-600">{animal.breed || 'No breed specified'}</p>
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-base sm:text-lg">{animal.type}</h3>
+                          <p className="text-gray-600 text-sm">{animal.breed || 'No breed specified'}</p>
                         </div>
-                        <div className="flex gap-2 ml-4">
+                        <div className="flex gap-2 self-start sm:self-auto">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 w-8 p-0 text-blue-600 border-blue-600 hover:bg-blue-50"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-blue-600 border-blue-600 hover:bg-blue-50"
                             onClick={() => handleEditAnimal(animal)}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 w-8 p-0 text-red-600 border-red-600 hover:bg-red-50"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-red-600 border-red-600 hover:bg-red-50"
                             onClick={() => handleDeleteAnimal(animal._id)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                         </div>
                       </div>
@@ -902,38 +1021,38 @@ const Dashboard = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="crops" className="space-y-4">
+            <TabsContent value="crops" className="space-y-3 sm:space-y-4">
               {crops.length === 0 ? (
                 <Card>
-                  <CardContent className="p-6 text-center">
-                    <p className="text-gray-500">No crops registered yet.</p>
+                  <CardContent className="p-4 sm:p-6 text-center">
+                    <p className="text-gray-500 text-sm sm:text-base">No crops registered yet.</p>
                   </CardContent>
                 </Card>
               ) : (
                 crops.map(crop => (
                   <Card key={crop._id}>
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg">{crop.type}</h3>
-                          <p className="text-gray-600">{crop.variety || 'No variety specified'}</p>
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-base sm:text-lg">{crop.type}</h3>
+                          <p className="text-gray-600 text-sm">{crop.variety || 'No variety specified'}</p>
                         </div>
-                        <div className="flex gap-2 ml-4">
+                        <div className="flex gap-2 self-start sm:self-auto">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 w-8 p-0 text-blue-600 border-blue-600 hover:bg-blue-50"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-blue-600 border-blue-600 hover:bg-blue-50"
                             onClick={() => handleEditCrop(crop)}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 w-8 p-0 text-red-600 border-red-600 hover:bg-red-50"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-red-600 border-red-600 hover:bg-red-50"
                             onClick={() => handleDeleteCrop(crop._id)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                         </div>
                       </div>
@@ -943,42 +1062,42 @@ const Dashboard = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="market" className="space-y-4">
+            <TabsContent value="market" className="space-y-3 sm:space-y-4">
               {listings.length === 0 ? (
                 <Card>
-                  <CardContent className="p-6 text-center">
-                    <p className="text-gray-500">No market listings yet.</p>
+                  <CardContent className="p-4 sm:p-6 text-center">
+                    <p className="text-gray-500 text-sm sm:text-base">No market listings yet.</p>
                   </CardContent>
                 </Card>
               ) : (
                 listings.map(listing => (
                   <Card key={listing._id}>
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg">{listing.title || 'Product Listing'}</h3>
-                          <p className="text-gray-600">{listing.description || 'No description'}</p>
-                          <div className="flex gap-4 mt-2 text-sm text-gray-500">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-base sm:text-lg">{listing.title || 'Product Listing'}</h3>
+                          <p className="text-gray-600 text-sm">{listing.description || 'No description'}</p>
+                          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-500">
                             <span>Price: {listing.pricePerUnit || 'N/A'} KSh/{listing.quantity?.unit || 'unit'}</span>
                             <span>Quantity: {listing.quantity?.amount || '0'} {listing.quantity?.unit || 'units'}</span>
                           </div>
                         </div>
-                        <div className="flex gap-2 ml-4">
+                        <div className="flex gap-2 self-start sm:self-auto">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 w-8 p-0 text-blue-600 border-blue-600 hover:bg-blue-50"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-blue-600 border-blue-600 hover:bg-blue-50"
                             onClick={() => handleEditListing(listing)}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 w-8 p-0 text-red-600 border-red-600 hover:bg-red-50"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-red-600 border-red-600 hover:bg-red-50"
                             onClick={() => handleDeleteListing(listing._id)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                         </div>
                       </div>
@@ -995,14 +1114,14 @@ const Dashboard = () => {
       
       {/* Add Farm Modal */}
       <Dialog open={showFarmModal} onOpenChange={setShowFarmModal}>
-        <DialogContent className="max-w-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+        <DialogContent className="w-[95vw] max-w-md sm:max-w-2xl bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-gray-900 dark:text-gray-100">Add New Farm</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl text-gray-900 dark:text-gray-100">Add New Farm</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreateFarm} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
-                <Label htmlFor="farmName" className="text-gray-700 dark:text-gray-300">Farm Name *</Label>
+                <Label htmlFor="farmName" className="text-sm text-gray-700 dark:text-gray-300">Farm Name *</Label>
                 <Input
                   id="farmName"
                   value={farmFormData.name}
@@ -1013,7 +1132,7 @@ const Dashboard = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="farmSize" className="text-gray-700 dark:text-gray-300">Farm Size (acres)</Label>
+                <Label htmlFor="farmSize" className="text-sm text-gray-700 dark:text-gray-300">Farm Size (acres)</Label>
                 <Input
                   id="farmSize"
                   type="number"
@@ -1024,7 +1143,7 @@ const Dashboard = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="county" className="text-gray-700 dark:text-gray-300">County *</Label>
+                <Label htmlFor="county" className="text-sm text-gray-700 dark:text-gray-300">County *</Label>
                 <Select value={selectedCounty} onValueChange={setSelectedCounty} required>
                   <SelectTrigger className="border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                     <SelectValue placeholder="Select county" />
@@ -1039,9 +1158,9 @@ const Dashboard = () => {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="subCounty" className="text-gray-700 dark:text-gray-300">Sub-County *</Label>
-                <Select 
-                  value={farmFormData.subCounty} 
+                <Label htmlFor="subCounty" className="text-sm text-gray-700 dark:text-gray-300">Sub-County *</Label>
+                <Select
+                  value={farmFormData.subCounty}
                   onValueChange={(value) => setFarmFormData({...farmFormData, subCounty: value})}
                   required
                   disabled={!selectedCounty}
@@ -1058,19 +1177,19 @@ const Dashboard = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label htmlFor="description" className="text-sm text-gray-700 dark:text-gray-300">Description</Label>
+                <Textarea
+                  id="description"
+                  value={farmFormData.description}
+                  onChange={(e) => setFarmFormData({...farmFormData, description: e.target.value})}
+                  placeholder="Describe your farm..."
+                  className="border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  rows={3}
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="description" className="text-gray-700 dark:text-gray-300">Description</Label>
-              <Textarea
-                id="description"
-                value={farmFormData.description}
-                onChange={(e) => setFarmFormData({...farmFormData, description: e.target.value})}
-                placeholder="Describe your farm..."
-                className="border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                rows={3}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-col sm:flex-row justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setShowFarmModal(false)} className="border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                 Cancel
               </Button>

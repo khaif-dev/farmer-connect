@@ -6,8 +6,10 @@ const Layout = () => {
   return (
     <div className='bg-gray-50 dark:bg-gray-900 min-h-screen'>
       <Nav />
-      <main className="flex justify-center items-center w-full min-h-screen">
-        <Outlet />
+      <main className="w-full min-h-screen">
+        <div className="container mx-auto">
+          <Outlet />
+        </div>
       </main>
     </div>
   )

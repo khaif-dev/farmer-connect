@@ -124,16 +124,17 @@ const Marketplace = () => {
 
   return (
     <div className="w-full min-h-screen bg-green-50 dark:bg-gray-900">
-
       {/* Main Section */}
-      <main className=" mx-auto px-6 py-10 space-y-6">
-        <h2 className="text-3xl font-extrabold text-gray-800 dark:text-gray-100">Marketplace</h2>
-        <p className="text-gray-600 dark:text-gray-300">Connect directly with buyers and get better prices for your produce</p>
+      <main className="space-y-4 sm:space-y-6">
+        <div className="space-y-2">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800 dark:text-gray-100">Marketplace</h2>
+          <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base">Connect directly with buyers and get better prices for your produce</p>
+        </div>
 
         {/* Listings */}
-        <section className="space-y-5">
+        <section className="space-y-3 sm:space-y-5">
           {loading ? (
-            <p className="text-gray-600 dark:text-gray-300">Loading listings...</p>
+            <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base">Loading listings...</p>
           ) : listings.length > 0 ? (
             listings.map((listing) => (
               <Card key={listing._id} className={`shadow-sm border-none ${
@@ -143,87 +144,88 @@ const Marketplace = () => {
                 listing.status === 'reserved' ? 'bg-yellow-50 dark:bg-yellow-900/20' :
                 'bg-amber-50 dark:bg-gray-800'
               } border-gray-200 dark:border-gray-700`}>
-                <CardContent className="p-6 flex flex-col gap-3 relative">
-                  {/* Owner actions - moved to bottom */}
-                  {/* (Owner actions are now at the bottom of the card) */}
-
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-semibold text-green-900 dark:text-green-400 flex items-center gap-2">
-                      {getUserTypeIcon(listing)}
-                      {getUserDisplayName(listing)}
-                    </h3>
-                    <div className="flex items-center gap-2">
+                <CardContent className="p-4 sm:p-6 flex flex-col gap-3 relative">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg sm:text-xl font-semibold text-green-900 dark:text-green-400 flex items-center gap-2">
+                        {getUserTypeIcon(listing)}
+                        <span className="truncate">{getUserDisplayName(listing)}</span>
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
                       <div className="flex items-center gap-1 text-yellow-500">
-                        <Star className="h-4 w-4 fill-yellow-400" />
-                        <span className="text-sm font-semibold">{listing.userId?.rating || "4.6"}</span>
+                        <Star className="h-3 w-3 sm:h-4 sm:w-4 fill-yellow-400" />
+                        <span className="text-xs sm:text-sm font-semibold">{listing.userId?.rating || "4.6"}</span>
                       </div>
                       {getStatusBadge(listing.status)}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <span className="text-xs bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full w-fit">
                       {getUserTypeDisplay(listing)}
                     </span>
                     {isOwner(listing) && (
-                      <span className="text-xs bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full">
+                      <span className="text-xs bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full w-fit">
                         Your Listing
                       </span>
                     )}
                   </div>
 
-                  <p className="text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-gray-600 dark:text-gray-400" /> 
-                    {listing.location?.county || 'Unknown County'}, {listing.location?.subCounty || 'Unknown Sub-County'}
+                  <p className="text-gray-700 dark:text-gray-300 flex items-center gap-2 text-sm sm:text-base">
+                    <MapPin className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600 dark:text-gray-400 flex-shrink-0" />
+                    <span className="truncate">{listing.location?.county || 'Unknown County'}, {listing.location?.subCounty || 'Unknown Sub-County'}</span>
                   </p>
 
-                  <p className="text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                    <ShoppingBasket className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                    {listing.userType === 'buyer' ? 'Looking for:' : 'Selling:'}{" "}
-                    <span className="font-medium text-gray-800 dark:text-gray-200">
-                      {listing.product?.name || 'Unknown Product'} ({listing.quantity?.amount || '0'} {listing.quantity?.unit || 'units'})
+                  <p className="text-gray-700 dark:text-gray-300 flex items-start gap-2 text-sm sm:text-base">
+                    <ShoppingBasket className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600 dark:text-gray-400 flex-shrink-0 mt-0.5" />
+                    <span>
+                      {listing.userType === 'buyer' ? 'Looking for:' : 'Selling:'}{" "}
+                      <span className="font-medium text-gray-800 dark:text-gray-200">
+                        {listing.product?.name || 'Unknown Product'} ({listing.quantity?.amount || '0'} {listing.quantity?.unit || 'units'})
+                      </span>
                     </span>
                   </p>
 
-                  <p className="text-gray-700 dark:text-gray-300">
+                  <p className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">
                     {listing.userType === 'buyer' ? 'Offering:' : 'Price:'} {listing.pricePerUnit || '0'} KSH/{listing.quantity?.unit || 'unit'}
                   </p>
 
                   {listing.description && (
-                    <p className="text-gray-600 dark:text-gray-400 text-sm">
+                    <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">
                       {listing.description}
                     </p>
                   )}
 
                   {/* Status-specific messaging */}
                   {listing.status === 'sold' && (
-                    <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-sm">
-                      <CheckCircle className="h-4 w-4" />
+                    <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-xs sm:text-sm">
+                      <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                       This product has been sold
                     </div>
                   )}
 
                   {listing.status === 'supplied' && (
-                    <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 text-sm">
-                      <CheckCircle className="h-4 w-4" />
+                    <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 text-xs sm:text-sm">
+                      <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                       This request has been fulfilled
                     </div>
                   )}
 
                   {listing.status === 'expired' && (
-                    <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
-                      <XCircle className="h-4 w-4" />
+                    <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-xs sm:text-sm">
+                      <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                       This listing has expired
                     </div>
                   )}
 
                   {/* Action buttons - only show for non-owner, non-expired listings */}
                   {!isOwner(listing) && listing.status !== 'expired' && (
-                    <Button 
+                    <Button
                       onClick={() => handleChat(listing)}
-                      className="w-fit bg-green-600 dark:bg-green-700 hover:bg-green-700 dark:hover:bg-green-600 text-white mt-3"
+                      className="w-fit bg-green-600 dark:bg-green-700 hover:bg-green-700 dark:hover:bg-green-600 text-white text-sm sm:text-base"
                     >
-                      <MessageCircle className="mr-2 h-4 w-4" /> 
+                      <MessageCircle className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                       {listing.userType === 'buyer' ? 'Contact Buyer' : 'Contact Seller'}
                     </Button>
                   )}
@@ -232,7 +234,7 @@ const Marketplace = () => {
                   {isOwner(listing) && (
                     <div className="flex flex-col gap-3 mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
                       {/* Edit and Delete buttons */}
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <EditListingModal listing={listing} onListingUpdated={handleListingUpdated} />
                         <Button
                           variant="outline"
@@ -240,13 +242,13 @@ const Marketplace = () => {
                           onClick={() => handleDeleteListing(listing._id)}
                           className="text-red-600 border-red-600 hover:bg-red-50"
                         >
-                          <Trash2 className="h-4 w-4 mr-2" />
+                          <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                           Delete
                         </Button>
                       </div>
                       
                       {/* Status update buttons */}
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         {listing.userType === 'farmer' && listing.status === 'available' && (
                           <Button
                             size="sm"
@@ -279,16 +281,16 @@ const Marketplace = () => {
               </Card>
             ))
           ) : (
-            <p className="text-gray-600 dark:text-gray-300">No listings available.</p>
+            <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base">No listings available.</p>
           )}
         </section>
 
         {/* Sell Your Produce / Create Request */}
-        <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm mt-10">
-          <CardContent className="p-6 flex flex-col sm:flex-row justify-between items-center">
+        <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm mt-6 sm:mt-10">
+          <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">List Your Products</h3>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">Create listings to connect with buyers and sellers</p>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100">List Your Products</h3>
+              <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm">Create listings to connect with buyers and sellers</p>
             </div>
             <CreateListingModal onListingCreated={handleListingCreated} />
           </CardContent>

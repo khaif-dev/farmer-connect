@@ -1,0 +1,53 @@
+{
+  "name": "farmer-connect",
+  "version": "1.0.0",
+  "description": "A comprehensive web application connecting farmers directly with buyers, featuring real-time communication, farm management tools, and intelligent weather integration.",
+  "main": "index.js",
+  "scripts": {
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "start": "cd backend && npm start",
+    "test": "echo \"Tests not implemented yet\"",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:backend": "cd backend && npx eslint .",
+    "deploy:frontend": "cd frontend && npm run build",
+    "deploy:backend": "echo \"Deploy backend to Render\"",
+    "setup": "npm run install:all && echo \"Setup complete! Check environment variables.\""
+  },
+  "keywords": [
+    "agriculture",
+    "farmers",
+    "marketplace",
+    "real-time-chat",
+    "weather-integration",
+    "kenya",
+    "farming",
+    "buyers",
+    "agricultural-technology"
+  ],
+  "author": "Farmer Connect Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/farmer-connect.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/farmer-connect/issues"
+  },
+  "homepage": "https://github.com/your-username/farmer-connect#readme",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ]
+}

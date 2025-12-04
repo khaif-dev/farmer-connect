@@ -123,7 +123,7 @@ const SignUp = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center pt-16 bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen flex w-4xl mx-auto items-center justify-center pt-16  bg-gray-50 dark:bg-gray-900">
       <Card className="w-full shadow-2xl border-0 bg-green-50 dark:bg-gray-800 backdrop-blur-sm">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 w-16 h-16 bg-green-600 dark:bg-green-700 rounded-full flex items-center justify-center">
@@ -173,7 +173,7 @@ const SignUp = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300">Email (Optional)</Label>
+                <Label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300">Email*</Label>
                 <Input
                   id="email"
                   name="email"
